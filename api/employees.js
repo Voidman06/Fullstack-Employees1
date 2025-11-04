@@ -1,5 +1,5 @@
 import express from "express";
-const router = express.Router();
+const employeesRouter = express.Router();
 
 // TODO: this file!
 
@@ -9,99 +9,118 @@ import {
   getEmployee,
   updateEmployee,
   deleteEmployee,
-} from "#db/queries/employees";
+} from "../db/queries/employees.js";
 
 //HEY HEY
-router.get("/", (req, res) => {
-  res.send("You are now connected to the Fullstack Employees API.");
+employeesRouter.get("/", async (req, res) => {
+  res.send("Welcome to the Fullstack Employees API.");
 });
 
 // GET ALL
-router.get("/employees", async (req, res) => {
+employeesRouter.get("/employees", async (req, res) => {
   const employees = await getEmployees();
-  res.status(200).json(employees);
-});
-
-// GET :ID
-router.get("/employees/:id", async (req, res) => {
-  const { id } = req.params;
-  const idNum = Number(id);
-
-  if (!Number.isInteger(idNum) || idNum <= 0) {
-    return res.status(400).json({ error: "Invalid employee ID." });
-  }
-
-  const employee = await getEmployee(idNum);
-  if (!employee) {
-    return res.status(404).json({ error: "Employee not found." });
-  }
-  return res.status(200).json({ employee });
+  res.status(200).send(employees);
 });
 
 // POST
-router.post("/employees", async (req, res) => {
-  if (!req.body || Object.keys(req.body).length === 0) {
-    return res.status(400).json({ error: "Request body is empty." });
+employeesRouter.post("/employees", async (req, res) => {
+  if (!req.body) {
+    return res.status(400).send("Request body is empty.");
   }
 
   const { name, birthday, salary } = req.body;
+  try {
+    if (!name || !birthday || !salary) {
+      return res.status(400).send("Missing fields.");
+    }
 
-  if (!name || !birthday || !salary) {
-    return res.status(400).json({ error: "Missing fields." });
+    const newEmployee = await createEmployee({ name, birthday, salary });
+    res.status(201).send(newEmployee);
+  } catch (error) {
+    console.error("Error creating employee: ", error);
+    res.status(500).send("Internal server error.");
   }
+});
 
-  const newEmployee = await createEmployee({ name, birthday, salary });
-  res.status(201).json({ newEmployee });
+// GET :ID
+employeesRouter.get("/employees/:id", async (req, res) => {
+  const { id } = req.params;
+  const idNum = Number(id);
+
+  try {
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).send("Invalid employee ID.");
+    }
+
+    const employee = await getEmployee(idNum);
+    if (!employee) {
+      return res.status(404).send("Employee not found.");
+    }
+    return res.status(200).send(employee);
+  } catch (error) {
+    console.error("Error fetching employee: ", error);
+    res.status(500).send("Internal server error.");
+  }
 });
 
 // PUT
-router.put("/employees/:id", async (req, res) => {
+employeesRouter.put("/employees/:id", async (req, res) => {
   const { id } = req.params;
   const idNum = Number(id);
 
-  if (!req.body || Object.keys(req.body).length === 0) {
-    return res.status(400).json({ error: "Request body is empty." });
+  try {
+    if (!req.body) {
+      return res.status(400).send("Request body is empty.");
+    }
+
+    const { name, birthday, salary } = req.body;
+
+    if (!name || !birthday || !salary) {
+      return res.status(400).send("Missing fields.");
+    }
+
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).send("Invalid employee ID.");
+    }
+
+    const employee = await getEmployee(idNum);
+    if (!employee) {
+      return res.status(404).send("Employee not found.");
+    }
+
+    const updatedEmployee = await updateEmployee({
+      id: idNum,
+      name,
+      birthday,
+      salary,
+    });
+    return res.status(200).send(updatedEmployee);
+  } catch (error) {
+    console.error("Error updating employee: ", error);
+    res.status(500).send("Internal server error.");
   }
-
-  const { name, birthday, salary } = req.body;
-
-  if (!name || !birthday || !salary) {
-    return res.status(400).json({ error: "Missing fields." });
-  }
-
-  if (!Number.isInteger(idNum) || idNum <= 0) {
-    return res.status(400).json({ error: "Invalid employee ID." });
-  }
-
-  const employee = await getEmployee(idNum);
-  if (!employee) {
-    return res.status(404).json({ error: "Employee not found." });
-  }
-
-  const updatedEmployee = await updateEmployee({
-    id: idNum,
-    name,
-    birthday,
-    salary,
-  });
-  return res.status(200).json({ updatedEmployee });
 });
 
 // DELETE
-router.delete("/employees/:id", async (req, res) => {
+employeesRouter.delete("/employees/:id", async (req, res) => {
   const { id } = req.params;
   const idNum = Number(id);
 
-  if (!Number.isInteger(idNum) || idNum <= 0) {
-    return res.status(400).json({ error: "Invalid employee ID." });
-  }
+  try {
+    if (!Number.isInteger(idNum) || idNum <= 0) {
+      return res.status(400).send("Invalid employee ID.");
+    }
 
-  const employee = await getEmployee(idNum);
-  if (!employee) {
-    return res.status(404).json({ error: "Employee not found." });
+    const employee = await getEmployee(idNum);
+    if (!employee) {
+      return res.status(404).send("Employee not found.");
+    }
+    await deleteEmployee(idNum);
+    res.status(204).send();
+  } catch (error) {
+    console.error("Error deleting employee: ", error);
+    res.status(500).send("Internal server error.");
   }
-  await deleteEmployee(idNum);
-  res.status(204).send();
 });
 
-export default router;
+export default employeesRouter;
